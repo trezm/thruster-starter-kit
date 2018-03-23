@@ -1,9 +1,8 @@
-extern crate fanta;
+extern crate thruster;
 extern crate serde;
 extern crate serde_json;
 extern crate time;
-extern crate tokio_proto;
-extern crate tokio_service;
+extern crate futures;
 
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate serde_derive;
@@ -13,8 +12,10 @@ mod connectivity;
 
 use context::{generate_context, Ctx};
 use connectivity::{init as connectivity_routes};
-use fanta::{App, MiddlewareChain};
+use thruster::{App, MiddlewareChain, MiddlewareReturnValue};
 use time::Duration;
+use std::boxed::Box;
+use futures::{future, Future};
 
 lazy_static! {
   static ref APP: App<Ctx> = {
@@ -34,37 +35,40 @@ lazy_static! {
   };
 }
 
-fn not_found_404(context: Ctx, _chain: &MiddlewareChain<Ctx>) -> Ctx {
+fn not_found_404(context: Ctx, _chain: &MiddlewareChain<Ctx>) -> MiddlewareReturnValue<Ctx> {
   let mut context = Ctx::new(context);
 
   context.body = "<html>
   ( ͡° ͜ʖ ͡°) What're you looking for here?
 </html>".to_owned();
-  context.set_header("Content-Type", "text/html");
+  context.set_header("Content-Type".to_owned(), "text/html".to_owned());
   context.status_code = 404;
 
-  context
+  Box::new(future::ok(context))
 }
 
-fn profiling(context: Ctx, chain: &MiddlewareChain<Ctx>) -> Ctx {
+fn profiling(context: Ctx, chain: &MiddlewareChain<Ctx>) -> MiddlewareReturnValue<Ctx> {
   let start_time = time::now();
 
-  let context = chain.next(context);
+  let ctx_future = chain.next(context)
+      .and_then(move |ctx| {
+        let elapsed_time: Duration = time::now() - start_time;
+        println!("[{}μs] {} -- {}",
+          elapsed_time.num_microseconds().unwrap(),
+          ctx.method.clone(),
+          ctx.path.clone());
 
-  let elapsed_time: Duration = time::now() - start_time;
-  println!("[{}ms] {} -- {}",
-    elapsed_time.num_microseconds().unwrap(),
-    context.method.clone(),
-    context.path.clone());
+        future::ok(ctx)
+      });
 
-  context
+  Box::new(ctx_future)
 }
 
 #[derive(Serialize)]
 struct JsonStruct<'a> {
   message: &'a str
 }
-fn json(mut context: Ctx, _chain: &MiddlewareChain<Ctx>) -> Ctx {
+fn json(mut context: Ctx, _chain: &MiddlewareChain<Ctx>) -> MiddlewareReturnValue<Ctx> {
   let json = JsonStruct {
     message: "Hello, World!"
   };
@@ -72,20 +76,20 @@ fn json(mut context: Ctx, _chain: &MiddlewareChain<Ctx>) -> Ctx {
   let val = serde_json::to_string(&json).unwrap();
 
   context.body = val;
-  context.set_header("Server", "fanta");
-  context.set_header("Content-Type", "application/json");
+  context.set_header("Server".to_owned(), "thruster".to_owned());
+  context.set_header("Content-Type".to_owned(), "application/json".to_owned());
 
-  context
+  Box::new(future::ok(context))
 }
 
-fn plaintext(mut context: Ctx, _chain: &MiddlewareChain<Ctx>) -> Ctx {
+fn plaintext(mut context: Ctx, _chain: &MiddlewareChain<Ctx>) -> MiddlewareReturnValue<Ctx> {
   let val = "Hello, World!".to_owned();
 
   context.body = val;
-  context.set_header("Server", "fanta");
-  context.set_header("Content-Type", "text/plain");
+  context.set_header("Server".to_owned(), "thruster".to_owned());
+  context.set_header("Content-Type".to_owned(), "text/plain".to_owned());
 
-  context
+  Box::new(future::ok(context))
 }
 
 fn main() {

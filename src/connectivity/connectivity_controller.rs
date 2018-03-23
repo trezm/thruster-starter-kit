@@ -1,8 +1,10 @@
 use context::{Ctx};
-use fanta::{MiddlewareChain};
+use thruster::{MiddlewareChain, MiddlewareReturnValue};
+use std::boxed::Box;
+use futures::future;
 
-pub fn ping(mut context: Ctx, _chain: &MiddlewareChain<Ctx>) -> Ctx {
+pub fn ping(mut context: Ctx, _chain: &MiddlewareChain<Ctx>) -> MiddlewareReturnValue<Ctx> {
   context.body = "pong".to_string();
 
-  context
+  Box::new(future::ok(context))
 }

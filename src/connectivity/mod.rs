@@ -1,6 +1,6 @@
 mod connectivity_controller;
 
-use fanta::{App};
+use thruster::{App};
 use context::{generate_context, Ctx};
 use self::connectivity_controller::ping;
 

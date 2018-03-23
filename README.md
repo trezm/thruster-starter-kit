@@ -1,6 +1,6 @@
-# Fanta Starter Kit
+# Thruster Starter Kit
 
-Welcome to the [fanta](https://github.com/trezm/fanta) starter kit. It includes the basic layout of an app, including a subroute. To start, simply clone this repo and run
+Welcome to the [thruster](https://github.com/trezm/thruster) starter kit. It includes the basic layout of an app, including a subroute. To start, simply clone this repo and run
 
 ```bash
 > cargo run
